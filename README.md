@@ -14,7 +14,7 @@ A Python-based pipeline for evaluating and comparing the performance of Deepgram
 ## Requirements
 
 - Python 3.13+
-- Required packages (see requirements.txt):
+- Required packages (see [requirements.txt](requirements.txt)):
   - deepgram
   - openai
   - datasets
@@ -36,6 +36,11 @@ pip install -r requirements.txt
 2. Set up API keys:
    - Obtain a Deepgram API key from https://deepgram.com
    - Obtain an OpenAI API key from https://platform.openai.com
+   - Update [stt_evaluation.py](stt_evaluation.py) with your API keys:
+```python
+DEEPGRAM_API_KEY = "your_deepgram_key_here"
+OPENAI_API_KEY = "your_openai_key_here"
+```
 
 ## Usage
 
@@ -74,4 +79,3 @@ The pipeline generates a comprehensive visualization showing:
 2. Error breakdown (SDI rates)
 3. Spanish loanword recognition performance
 4. Spanish loanword error rate comparison
-
