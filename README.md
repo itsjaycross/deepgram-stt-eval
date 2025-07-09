@@ -96,7 +96,3 @@ The script will execute the following steps:
 - **Recall**: Of the actual loanwords present, how many were found?
 - **F1-Score**: The balanced harmonic mean of Precision and Recall.
 - **Loanword WER**: A focused WER calculated only on the loanword vocabulary.
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
