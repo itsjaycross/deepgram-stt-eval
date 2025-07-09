@@ -1,81 +1,93 @@
-# Speech-to-Text Evaluation Pipeline
+Speech-to-Text (STT) Vendor Evaluation Pipeline
+A Python-based pipeline for benchmarking the performance of Deepgram (Nova-2) and OpenAI (Whisper-1) speech-to-text models on English audio data.
 
-A Python-based pipeline for evaluating and comparing the performance of Deepgram and OpenAI Whisper speech-to-text (STT) models on English audio data.
+This project provides a framework for evaluating STT vendors on both standard accuracy metrics and custom linguistic challenges. The goal is to produce clear, data-driven insights to inform model selection for production use cases.
 
-## Features
+Features
+Evaluates STT models using a subset of the Common Voice 11.0 English test partition.
 
-- Evaluates STT models using the Common Voice 11.0 English test partition
-- Calculates standard STT metrics (WER, WRR, SDI rates)
-- Implements Spanish loanword detection and accuracy metrics
-- Generates detailed visualizations of model performance
-- Handles audio processing and transcription asynchronously
-- Saves results for further analysis
+Calculates standard STT metrics (WER, WRR, and SDI rates) using the jiwer library.
 
-## Requirements
+Implements a custom metric for Spanish loanword detection to test performance on specialized vocabularies.
 
-- Python 3.13+
-- Required packages (see [requirements.txt](requirements.txt)):
-  - deepgram
-  - openai
-  - datasets
-  - numpy
-  - pandas
-  - matplotlib
-  - seaborn
-  - jiwer
-  - tqdm
-  - soundfile
+Generates a detailed CSV report with all transcripts and metrics for granular analysis.
 
-## Setup
+Creates a multi-panel PNG visualization comparing model performance.
 
-1. Install dependencies:
-```bash
+Uses asyncio to run API calls concurrently for improved efficiency.
+
+Requirements
+Python 3.10+
+
+All required packages are listed in requirements.txt.
+
+Setup
+Clone the repository:
+
+git clone https://github.com/your-username/your-repo-name.git
+cd your-repo-name
+
+Install dependencies:
+
 pip install -r requirements.txt
-```
 
-2. Set up API keys:
-   - Obtain a Deepgram API key from https://deepgram.com
-   - Obtain an OpenAI API key from https://platform.openai.com
-   - Update [stt_evaluation.py](stt_evaluation.py) with your API keys:
-```python
-DEEPGRAM_API_KEY = "your_deepgram_key_here"
-OPENAI_API_KEY = "your_openai_key_here"
-```
+Set up API Keys:
+This project requires API keys from Deepgram and OpenAI. It is configured to load these keys from environment variables for security.
 
-## Usage
+Recommended Method: Create a .env file in the root of the project directory:
 
-Run the evaluation pipeline:
-```bash
+# .env
+DEEPGRAM_API_KEY="your-deepgram-key-here"
+OPENAI_API_KEY="your-openai-key-here"
+
+The script will automatically load these keys if python-dotenv is installed.
+
+Alternative Method: Set the environment variables directly in your terminal session:
+
+export DEEPGRAM_API_KEY="your-deepgram-key-here"
+export OPENAI_API_KEY="your-openai-key-here"
+
+Usage
+Run the evaluation pipeline from your terminal:
+
 python stt_evaluation.py
-```
 
-The script will:
-1. Load audio samples from Common Voice dataset
-2. Transcribe audio using both Deepgram and Whisper
-3. Calculate metrics including WER, WRR, and Spanish loanword detection
-4. Generate visualizations comparing model performance
-5. Save results to CSV and PNG files
+The script will execute the following steps:
 
-## Output Files
+Load and prepare audio samples from the Common Voice dataset.
 
-- `stt_evaluation_results.csv`: Detailed transcription results and metrics
-- `stt_evaluation_report.png`: Visualization of model performance comparison
+Transcribe each sample using both the Deepgram and Whisper APIs.
 
-## Metrics Calculated
+Calculate a suite of performance metrics for each transcription.
 
-- Word Error Rate (WER)
-- Word Recognition Rate (WRR)
-- Substitution, Deletion, and Insertion rates
-- Spanish Loanword Detection:
-  - Precision
-  - Recall
-  - F1 Score
-  - Loanword-specific WER
+Generate and save a summary visualization (stt_evaluation_report.png).
 
-## Visualization
+Save the detailed, sample-by-sample results to a CSV file (stt_evaluation_results.csv).
 
-The pipeline generates a comprehensive visualization showing:
-1. Overall accuracy metrics (WER and WRR)
-2. Error breakdown (SDI rates)
-3. Spanish loanword recognition performance
-4. Spanish loanword error rate comparison
+Print a summary of the findings to the console.
+
+Output Files
+stt_evaluation_results.csv: A detailed CSV file containing the reference transcript, vendor hypotheses, and all calculated metrics for every sample.
+
+stt_evaluation_report.png: A multi-panel plot visualizing the comparative performance of the models.
+
+Metrics Calculated
+Standard Metrics
+Word Error Rate (WER): The primary indicator of overall accuracy.
+
+Word Recognition Rate (WRR): The percentage of words correctly transcribed (1 - WER).
+
+Substitution Rate
+
+Deletion Rate
+
+Insertion Rate
+
+Custom Metric: Spanish Loanword Performance
+Precision: Of the words identified as loanwords, how many were correct?
+
+Recall: Of the actual loanwords present, how many were found?
+
+F1-Score: The balanced harmonic mean of Precision and Recall.
+
+Loanword WER: A focused WER calculated only on the loanword vocabulary.
