@@ -1,23 +1,26 @@
-python>=3.13.0
-numpy>=1.21.0
-pandas>=1.3.0
-scipy>=1.7.0
-python-dotenv>=1.0.0
-pydantic>=1.9.0
-pydantic-settings>=2.0.0
+# --- Core STT Vendor SDKs ---
+# For interacting with the Deepgram and OpenAI APIs.
 deepgram-sdk>=3.0.0
-nemo_toolkit[all]>=1.20.0
-torch>=2.0.1
-torchaudio>=2.0.2
-soundfile>=0.11.0
-librosa>=0.10.0
-tqdm>=4.62.0
-datasets>=1.18.0
-matplotlib>=3.4.0
-seaborn>=0.11.0
-plotly>=5.3.0
-spacy>=3.4.0
-spacy-transformers>=1.1.0
-typer>=0.4.0
-hf_xet>=0.2.0
-soundfile>=0.11.0
+openai>=1.3.0
+
+# --- Data Handling & Processing ---
+# For loading the dataset and managing data structures.
+datasets>=2.10.0
+pandas>=1.5.0
+numpy>=1.24.0
+
+# --- Evaluation Metrics ---
+# For calculating Word Error Rate (WER) and related metrics.
+jiwer>=3.0.0
+
+# --- Visualization ---
+# For generating the summary plots.
+matplotlib>=3.6.0
+seaborn>=0.12.0
+
+# --- Utilities ---
+# For showing the progress bar during evaluation.
+tqdm>=4.64.0
+
+# Optional: For managing API keys from a .env file
+python-dotenv>=1.0.0
