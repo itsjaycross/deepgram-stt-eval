@@ -7,6 +7,7 @@ This project provides a framework for evaluating STT vendors on both standard ac
 ## Features
 
 - Evaluates STT models using a subset of the Common Voice 11.0 English test partition.
+- Applies NLTK-based text normalization to ensure fair comparison between models.
 - Calculates standard STT metrics (WER, WRR, and SDI rates) using the jiwer library.
 - Implements a custom metric for Spanish loanword detection to test performance on specialized vocabularies.
 - Generates a detailed CSV report with all transcripts and metrics for granular analysis.
