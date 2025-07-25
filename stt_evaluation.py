@@ -11,6 +11,7 @@ Key Features:
 - Spanish loanword detection and accuracy metrics.
 - Clean, readable, and streamlined code for technical submission.
 - Updated for modern Deepgram (v3) and OpenAI Whisper SDKs.
+- Text normalization applied to both reference and hypothesis transcripts.
 """
 
 import asyncio
@@ -30,6 +31,29 @@ from datasets import load_dataset
 from deepgram import DeepgramClient, PrerecordedOptions
 from openai import OpenAI
 from tqdm import tqdm
+import nltk
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
+import re
+
+# Download required NLTK data
+try:
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    nltk.download('punkt')
+try:
+    nltk.data.find('corpora/stopwords')
+except LookupError:
+    nltk.download('stopwords')
+try:
+    nltk.data.find('corpora/wordnet')
+except LookupError:
+    nltk.download('wordnet')
+try:
+    nltk.data.find('averaged_perceptron_tagger')
+except LookupError:
+    nltk.download('averaged_perceptron_tagger')
 
 # --- Configuration ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -88,6 +112,80 @@ class STTEvaluationPipeline:
         self.openai_client = OpenAI(api_key=openai_key)
         self.temp_dir = None
         logger.info("Deepgram and OpenAI clients initialized successfully.")
+
+    def normalize_text(self, text: str) -> str:
+        """
+        Applies text normalization using NLTK for fair comparison between transcripts.
+        This includes lowercasing, removing punctuation, expanding contractions,
+        normalizing numbers, and standardizing whitespace.
+        """
+        if not text:
+            return ""
+        
+        # Convert to lowercase
+        text = text.lower()
+        
+        # Expand contractions
+        contractions = {
+            "won't": "will not", "can't": "cannot", "n't": " not",
+            "'ll": " will", "'ve": " have", "'re": " are", "'d": " would",
+            "'m": " am", "it's": "it is", "let's": "let us",
+            "that's": "that is", "what's": "what is", "there's": "there is",
+            "here's": "here is", "where's": "where is", "who's": "who is",
+            "how's": "how is", "y'all": "you all", "'cause": "because"
+        }
+        for contraction, expansion in contractions.items():
+            text = text.replace(contraction, expansion)
+        
+        # Remove punctuation but keep spaces
+        text = re.sub(r'[^\w\s]', ' ', text)
+        
+        # Normalize numbers (convert digits to words for consistency)
+        # This helps when one system outputs "5" and another outputs "five"
+        digit_to_word = {
+            '0': 'zero', '1': 'one', '2': 'two', '3': 'three', '4': 'four',
+            '5': 'five', '6': 'six', '7': 'seven', '8': 'eight', '9': 'nine',
+            '10': 'ten', '11': 'eleven', '12': 'twelve', '13': 'thirteen',
+            '14': 'fourteen', '15': 'fifteen', '16': 'sixteen', '17': 'seventeen',
+            '18': 'eighteen', '19': 'nineteen', '20': 'twenty', '30': 'thirty',
+            '40': 'forty', '50': 'fifty', '60': 'sixty', '70': 'seventy',
+            '80': 'eighty', '90': 'ninety', '100': 'one hundred'
+        }
+        
+        # Handle multi-digit numbers by converting to words
+        words = text.split()
+        normalized_words = []
+        for word in words:
+            if word.isdigit() and word in digit_to_word:
+                normalized_words.append(digit_to_word[word])
+            elif word.isdigit() and len(word) <= 2:
+                # Handle two-digit numbers
+                if int(word) <= 20:
+                    normalized_words.append(word)  # Keep as is if not in map
+                else:
+                    tens = int(word[0]) * 10
+                    ones = int(word[1])
+                    if tens in digit_to_word and ones == 0:
+                        normalized_words.append(digit_to_word[str(tens)])
+                    elif tens in digit_to_word and ones in digit_to_word:
+                        normalized_words.append(digit_to_word[str(tens)] + " " + digit_to_word[str(ones)])
+                    else:
+                        normalized_words.append(word)
+            else:
+                normalized_words.append(word)
+        
+        text = ' '.join(normalized_words)
+        
+        # Tokenize using NLTK
+        tokens = word_tokenize(text)
+        
+        # Remove extra whitespace and rejoin
+        text = ' '.join(tokens)
+        
+        # Final cleanup: remove multiple spaces and strip
+        text = re.sub(r'\s+', ' ', text).strip()
+        
+        return text
 
     def load_test_data(self, max_samples: int = 50) -> pd.DataFrame:
         """Loads a small subset of the English Common Voice 11.0 test partition."""
@@ -151,7 +249,8 @@ class STTEvaluationPipeline:
                 buffer_data = audio_file.read()
 
             payload = {"buffer": buffer_data}
-            options = PrerecordedOptions(model="nova-2", smart_format=True, language="en")
+            # UPDATED: Changed model from nova-2 to nova-3
+            options = PrerecordedOptions(model="nova-3", smart_format=True, language="en")
 
             # CORRECTED: Use .asyncrest instead of the deprecated .asyncprerecorded
             response = await self.deepgram_client.listen.asyncrest.v("1").transcribe_file(
@@ -215,9 +314,14 @@ class STTEvaluationPipeline:
         
         return {'precision': precision, 'recall': recall, 'f1_score': f1_score, 'loanword_wer': loanword_wer}
 
-    def calculate_metrics(self, reference: str, hypothesis: str) -> Dict[str, float]:
+    def calculate_metrics(self, reference: str, hypothesis: str, normalize: bool = True) -> Dict[str, float]:
         """Calculates WER, WRR, SDI rates, and Spanish loanword metrics."""
         try:
+            # Apply text normalization if requested
+            if normalize:
+                reference = self.normalize_text(reference)
+                hypothesis = self.normalize_text(hypothesis)
+            
             if not reference and not hypothesis:
                 return {"wer": 0.0, "wrr": 1.0, "substitutions": 0.0, "deletions": 0.0, "insertions": 0.0, "precision": 1.0, "recall": 1.0, "f1_score": 1.0, "loanword_wer": 0.0, 'spanish_loanwords_ref': 0, 'spanish_loanwords_hyp': 0}
             elif not reference:
@@ -252,6 +356,7 @@ class STTEvaluationPipeline:
         except Exception as e:
             logger.warning(f"Metric calculation failed: {e}. Returning defaults.")
             return {"wer": 1.0, "wrr": 0.0, "substitutions": 0.0, "deletions": 1.0, "insertions": 0.0, "precision": 0.0, "recall": 0.0, "f1_score": 0.0, "loanword_wer": 1.0, 'spanish_loanwords_ref': 0, 'spanish_loanwords_hyp': 0}
+    
     async def evaluate_models(self, max_samples: int = 50) -> pd.DataFrame:
         """Evaluates STT models on a dataset and calculates metrics."""
         logger.info(f"Starting STT model evaluation for {max_samples} samples...")
@@ -269,12 +374,23 @@ class STTEvaluationPipeline:
                 deepgram_transcript = await self.transcribe_deepgram_async(audio_path)
                 whisper_transcript = await self.transcribe_whisper(audio_path)
 
-                deepgram_metrics = self.calculate_metrics(reference, deepgram_transcript)
-                whisper_metrics = self.calculate_metrics(reference, whisper_transcript)
+                # Calculate metrics with normalization
+                deepgram_metrics = self.calculate_metrics(reference, deepgram_transcript, normalize=True)
+                whisper_metrics = self.calculate_metrics(reference, whisper_transcript, normalize=True)
+                
+                # Also store normalized versions for analysis
+                normalized_reference = self.normalize_text(reference)
+                normalized_deepgram = self.normalize_text(deepgram_transcript)
+                normalized_whisper = self.normalize_text(whisper_transcript)
                 
                 results.append({
-                    "audio_path": audio_path, "reference": reference,
-                    "deepgram_transcript": deepgram_transcript, "whisper_transcript": whisper_transcript,
+                    "audio_path": audio_path, 
+                    "reference": reference,
+                    "normalized_reference": normalized_reference,
+                    "deepgram_transcript": deepgram_transcript, 
+                    "normalized_deepgram": normalized_deepgram,
+                    "whisper_transcript": whisper_transcript,
+                    "normalized_whisper": normalized_whisper,
                     **{f"deepgram_{k}": v for k, v in deepgram_metrics.items()},
                     **{f"whisper_{k}": v for k, v in whisper_metrics.items()}
                 })
@@ -298,9 +414,11 @@ class STTEvaluationPipeline:
         print("\n" + "="*60)
         print("                STT MODEL EVALUATION SUMMARY")
         print("="*60)
-        print(f"\nEvaluated on {len(results_df)} audio samples.\n")
+        print(f"\nEvaluated on {len(results_df)} audio samples.")
+        print("Model: Deepgram Nova-3 vs OpenAI Whisper")
+        print("Text normalization: ENABLED\n")
         
-        print("STANDARD METRICS:")
+        print("STANDARD METRICS (with normalization):")
         print("-" * 50)
         print(f"{'Metric':<20} | {'Deepgram':<12} | {'Whisper':<12}")
         print("-" * 50)
@@ -344,7 +462,7 @@ class STTEvaluationPipeline:
         }
         
         fig, axes = plt.subplots(2, 2, figsize=(16, 12))
-        fig.suptitle('STT Model Performance Comparison', fontsize=16, fontweight='bold')
+        fig.suptitle('STT Model Performance Comparison (Nova-3 vs Whisper)\nwith Text Normalization', fontsize=16, fontweight='bold')
 
         # Plot 1: WER and WRR
         wer_wrr_data = {'Metric': ['WER', 'WRR'] * 2, 'Value': [summary['deepgram']['wer'], summary['deepgram']['wrr'], summary['whisper']['wer'], summary['whisper']['wrr']], 'Model': ['Deepgram'] * 2 + ['Whisper'] * 2}
