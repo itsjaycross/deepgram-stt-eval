@@ -9,6 +9,10 @@ datasets>=2.10.0
 pandas>=1.5.0
 numpy>=1.24.0
 
+# --- Text Processing & Normalization ---
+# For advanced text normalization and NLP operations.
+nltk>=3.8.0
+
 # --- Evaluation Metrics ---
 # For calculating Word Error Rate (WER) and related metrics.
 jiwer>=3.0.0
